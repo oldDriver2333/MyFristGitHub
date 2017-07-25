@@ -1,0 +1,175 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.istudycloud.dao.IRoleDao">
+	<resultMap type="Role" id="RoleMapper">
+		<id property="role_id" column="role_id"/>
+		<result property="role_name" column="role_name"/>
+		<result property="descn" column="descn"/>
+		<result property="created_by" column="created_by"/>
+		<result property="created_date" column="created_date"/>
+		<result property="last_updated_by" column="last_updated_by"/>
+		<result property="last_updated_date" column="last_updated_date"/>
+		<collection property="rescs" ofType="Resc" >
+			<id column="resc_id" property="resc_id"/>
+			<result column="resc_name" property="resc_name"/>
+			<result column="res_type" property="res_type"/>
+			<result column="res_string" property="res_string"/>
+			<result column="priority" property="priority"/>
+			<result column="descn2" property="descn"/>
+		</collection>
+	</resultMap>
+	
+	<select id="queryByResc" parameterType="long" resultType="string" 
+	 flushCache="false" useCache="true">
+	 	select role.role_name
+	 	from role
+	 	left join resc_role rr
+	 	on rr.role_id=role.role_id
+	 	left join resc
+	 	on rr.resc_id=resc.resc_id
+	 	where resc.resc_id=#{resc_id}
+	 </select>
+	
+	<!-- 保存角色 -->
+	<insert id="saveRole" parameterType="Role" keyProperty="id" useGeneratedKeys="true">
+		INSERT INTO role 
+		(role_id,role_name,descn,created_date,created_by,last_updated_date,last_updated_by)
+		VALUES
+		(#{role_id},#{role_name},#{descn},#{created_date},#{created_by},#{last_updated_date},#{last_updated_by})
+	</insert>
+	
+	<!-- 删除角色 -->
+	<delete id="deleteRoleById" parameterType="long">
+		delete from role
+		where
+		role_id = #{id}
+	</delete>
+	
+	
+	<!-- 查询角色 -->
+	<select id="queryRole" parameterType="DatatablesRequest" resultMap="RoleMapper" >
+		select * from role
+		<where>
+			<if test="searchKey!=''">
+				and (
+					role_name like '%${searchKey}%'
+					or descn like '%${searchKey}%'
+					or  created_by '%${searchKey}%'
+					or  created_date '%${searchKey}%'
+					or  last_updated_by '%${searchKey}%'
+					or  last_updated_date '%${searchKey}%'
+				)
+			</if>
+		</where>
+		order by ${sortColumnName} ${sortColumnType}
+		limit #{start},#{length}
+	</select>
+	
+	<!-- 
+	/**
+	 * 获取养殖单元总数
+	 */
+	int queryCount();
+	 -->
+	<select id="queryCount" resultType="int" flushCache="false"
+	useCache="true">
+		select count(1) from role
+	</select>
+	
+	<!-- 
+	/**
+	 * 获取过滤后的养殖单元数量
+	 */
+	int queryCountFilte(DatatablesRequest dr);
+	 -->
+	<select id="queryCountFilte" parameterType="DatatablesRequest"
+	useCache="true" flushCache="false" resultType="int">
+		select count(1) from role 
+		<where>
+			<if test="searchKey!=''">
+				and (
+					role_name like '%${searchKey}%'
+					or descn like '%${searchKey}%'
+					or  created_by '%${searchKey}%'
+					or  created_date '%${searchKey}%'
+					or  last_updated_by '%${searchKey}%'
+					or  last_updated_date '%${searchKey}%'
+				)
+			</if>
+		</where>
+	</select>
+	
+	
+	<!-- 查询某个角色以及旗下的所有权限 -->
+	<select id="getRoleById" parameterType="long" resultMap="RoleMapper" flushCache="false" useCache="true">
+		select 
+		r.role_id,r.role_name,r.descn,r.created_date,r.created_by,r.last_updated_date,r.last_updated_by,
+		p.resc_id as resc_id,p.resc_name as resc_name,p.res_type as res_type,p.res_string as res_string,p.priority as priority,p.descn as descn
+		from role r
+		left join resc_role r1
+		on
+		r.role_id = r1.role_id
+		left join resc p
+		on
+		r1.resc_id = p.resc_id
+		where
+		r.role_id = #{id}
+	</select>
+	
+	<select id="listAll" resultMap="RoleMapper">
+		select * from role
+	</select>
+	
+	<!-- 根据角色ID查询某个角色以及其拥有的权限 -->
+	<select id="getRoleRescById" resultMap="RoleMapper">
+		select r1.*, r2.resc_id,r2.resc_name,r2.res_type,r2.res_string,r2.priority,r2.descn as descn2
+		from role r1
+		left join 
+		resc_role rr
+		on
+		r1.role_id = rr.role_id
+		left join 
+		resc r2
+		on
+		rr.resc_id = r2.resc_id
+		where
+		r1.role_id = #{id}
+	</select>
+	
+	<!-- 删除角色权限之间的关联 -->
+	<delete id="deleteRoleRescRelationByUserId">
+		delete from resc_role
+		where
+		role_id = #{id}
+	</delete>
+	
+	<!-- 添加角色与权限之间的映射 -->
+	<insert id="updateRoleRescRelation">
+		insert into resc_role
+		(role_id,resc_id)
+		values
+		(#{role_id},#{resc_id})
+	</insert>
+	
+	<!-- 更新角色信息 -->
+	<update id="updateRole" parameterType="Role">
+		update role
+		set
+		last_updated_by = #{last_updated_by}
+		,last_updated_date = #{last_updated_date}
+		<if test="role_name != null and role_name != '' ">
+			,role_name = #{role_name}
+		</if>
+		<if test="descn != null and descn != '' ">
+			,descn = #{descn}
+		</if>
+		where
+		role_id = #{role_id}
+	</update>
+	
+	
+	
+	
+	
+	
+</mapper>
